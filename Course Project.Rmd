@@ -1,0 +1,152 @@
+---
+title: 'Assignment: Prediction Assignment Writeup'
+author: "Carlos Diaz"
+date: "2 de septiembre de 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## OBJECTIVE: 
+
+### The objective of this assignment is to predict the way in which the subjects of the experiment actually perform the excersice based on the information and variables found in the training set. The results will be tested in a test set and deviations will be quantified. 
+
+## BACKGROUND:
+
+### Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+### In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+### Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg).
+
+## DATA:
+
+### The training data for this project are available here:
+### https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+### The test data are available here:
+### https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+## REFERENCES:
+
+### Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
+
+## LOADING DATA AND LIBRARIES: 
+
+```{r}
+
+## Loading libraries:
+
+setwd("C:/Users/ADMIN/Desktop/Data Scientist Specialization/Course 8 - Practical Machine Learning")
+library(ggplot2)
+library(lattice)
+library(caret)
+library(randomForest)
+library(e1071)
+
+## Downloading data: 
+
+trainURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv" 
+download.file(url=trainURL, destfile="training.csv")
+
+testURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url=testURL, destfile="testing.csv")
+
+## Reading data:
+
+train <- read.csv("training.csv", na.strings=c("NA","#DIV/0!",""))
+test <- read.csv("testing.csv", na.strings=c("NA","#DIV/0!",""))
+str(train)
+
+## Outcome to be predicted:
+
+summary(train$classe)
+```
+
+## TRAINING AND TESTING DATA: 
+
+```{r}
+
+## Subsettig train data for cross-validation (60% - 40%):
+
+dpTrain <- createDataPartition(y=train$classe, p=0.6, list=FALSE)
+Train_1 <- train[dpTrain, ]
+Test_1 <- train[-dpTrain, ]
+dim(Train_1)
+dim(Test_1)
+
+```
+
+## FILTERING USEFUL DATA: 
+
+```{r}
+
+## Removing variables with NAs >= 75%:
+
+Train_1_NAs <- Train_1
+for (i in 1:length(Train_1)) {
+  if (sum(is.na(Train_1[ , i])) / nrow(Train_1) >= .75) {
+    for (j in 1:length(Train_1_NAs)) {
+      if (length(grep(names(Train_1[i]), names(Train_1_NAs)[j]))==1) {
+        Train_1_NAs <- Train_1_NAs[ , -j]
+      }}}}
+dim(Train_1_NAs)
+    
+```
+
+```{r}
+
+## Removing columns that are not predictors:
+
+Train_FIL1 <- Train_1_NAs[,8:length(Train_1_NAs)]
+dim(Train_FIL1)
+
+```
+
+## RANDOM FOREST ESTIMATION:
+
+```{r}
+
+## A Random Forest Estimation to predict classe is made on the filtered training dataset which afterwards is cross-validated:  
+
+set.seed(666)
+
+RFest <- randomForest(classe~., data = Train_FIL1)
+print(RFest)
+
+```
+
+```{r}
+
+## Cross validation:  
+
+CrossV <- predict(RFest, Test_1, type = "class")
+confusionMatrix(Test_1$classe, CrossV)
+
+```
+
+```{r}
+
+CrossV2 <- predict(RFest, Train_1, type = "class")
+confusionMatrix(Train_1$classe, CrossV2)
+
+```
+
+## PARTIAL RESULTS:
+
+### As it may be seen from the estimations results, it is possible to evidenciate that running the model on test data fro cross validation it is possible to find an accuracy of 99.3%. When the model is confronted to training data used to build the mdoel, it shows a 100% accuracy.  
+
+## TESTING MODEL WITH TEST DATASET:
+
+```{r}
+
+FINAL_forecasting <- predict(RFest, test, type = "class")
+print(FINAL_forecasting)
+```
+
